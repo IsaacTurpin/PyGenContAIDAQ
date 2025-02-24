@@ -213,6 +213,8 @@ class GraphData(tk.Frame):
         self.xdata = np.array([]) # Stores the time values (x-axis)
         self.ydata = [] # Stores the voltage values (y-axis)
         self.display_duration = 10  # Display last n seconds of data
+        self.min_value = np.inf  # Initialize min_value to positive infinity
+        self.max_value = -np.inf  # Initialize max_value to negative infinity
 
     def define_xy_array(self, array_no, data_title):
         self.legend_title = data_title
@@ -221,9 +223,6 @@ class GraphData(tk.Frame):
 
     def plot_data(self, chl_number, sample_number, x_vals, scale, offset, y_vals):
         self.ax.clear()  # Clear previous data without losing axis settings
-
-        # Ensure the y-axis remains fixed
-        self.ax.set_ylim(-10, 10)
 
         # Calculate the number of samples to display for n seconds
         sample_rate = float(self.parent.inputSettingsFrame.sampleRateEntry.get())
@@ -259,17 +258,47 @@ class GraphData(tk.Frame):
                     self.ydata[i] = self.ydata[i][-display_samples:]
 
         # Apply scaling and offset to the data
+        calibrated_data = []
         for i in range(chl_number):
             if chl_number == 1:
                 calibrated_data = np.array(self.ydata) * float(scale[i]) + float(offset[i])
             else:
-                calibrated_data = np.array(self.ydata[i]) * float(scale[i]) + float(offset[i])
-            self.ax.plot(self.xdata, calibrated_data, label=self.legend_title[i])
+                calibrated_data.append(np.array(self.ydata[i]) * float(scale[i]) + float(offset[i]))
+
+        # Find the minimum and maximum values of the calibrated data
+        if chl_number == 1:
+            current_min = np.min(calibrated_data)
+            current_max = np.max(calibrated_data)
+        else:
+            current_min = min(np.min(channel) for channel in calibrated_data)
+            current_max = max(np.max(channel) for channel in calibrated_data)
+
+        # Update the overall min and max values
+        if current_min < self.min_value:
+            self.min_value = current_min
+        if current_max > self.max_value:
+            self.max_value = current_max
+
+        # Add a margin to the min and max values
+        margin = 0.1 * (self.max_value - self.min_value)  # 10% of the data range
+        y_min = self.min_value - margin
+        y_max = self.max_value + margin
+
+        # Set y-axis limits with the added margin
+        self.ax.set_ylim(y_min, y_max)
+
+        # Plot the data
+        if chl_number == 1:
+            self.ax.plot(self.xdata, calibrated_data, label=self.legend_title[0])
+        else:
+            for i in range(chl_number):
+                self.ax.plot(self.xdata, calibrated_data[i], label=self.legend_title[i])
 
         # Set x-axis limits to show the last n seconds
         if len(self.xdata) > 0:
             self.ax.set_xlim(max(0, self.xdata[-1] - self.display_duration), self.xdata[-1])
 
+        # Add legend
         self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True)
         self.graph.draw()
 
