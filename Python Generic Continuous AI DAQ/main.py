@@ -18,7 +18,7 @@ class VoltageContinuousInput(tk.Frame):
         tk.Frame.__init__(self, master)
         self.master = master
         self.master.title("Voltage - Continuous Input")
-        self.master.geometry("1100x600")
+        self.master.geometry("1100x700")
         self.run = False
         self.task = None
         self.create_widgets()
@@ -165,14 +165,14 @@ class ChannelSettings(tk.LabelFrame):
         self.physicalChannelEntry.insert(0, "Dev1/ai0:1")
         self.physicalChannelEntry.grid(row=1, sticky="ew", padx=self.xPadding)
 
-        ttk.Label(self, text="Scale (comma-separated, e.g., 1,2)").grid(row=2, sticky='w', padx=self.xPadding, pady=(10, 0))
+        ttk.Label(self, text="Scale (comma-separated, e.g., 1, 2)").grid(row=2, sticky='w', padx=self.xPadding, pady=(10, 0))
         self.scale_entry = ttk.Entry(self)
-        self.scale_entry.insert(0, "1,1")
+        self.scale_entry.insert(0, "1, 1")
         self.scale_entry.grid(row=3, sticky="ew", padx=self.xPadding)
 
-        ttk.Label(self, text="Offset (comma-separated, e.g., 0,0)").grid(row=4, sticky='w', padx=self.xPadding, pady=(10, 0))
+        ttk.Label(self, text="Offset (comma-separated, e.g., 0, 0)").grid(row=4, sticky='w', padx=self.xPadding, pady=(10, 0))
         self.offset_entry = ttk.Entry(self)
-        self.offset_entry.insert(0, "0,0")
+        self.offset_entry.insert(0, "0, 0")
         self.offset_entry.grid(row=5, sticky="ew", padx=self.xPadding, pady=(0, 10))
 
         ttk.Label(self, text="Calibrated Data = Raw Data * Scale + Offset").grid(row=6, sticky="w", padx=self.xPadding, pady=(10, 0))
@@ -201,12 +201,13 @@ class InputSettings(tk.LabelFrame):
 class GraphData(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
+        self.graph_title = ttk.Label(self, text="Voltage Input")
         self.parent = parent  # Store the parent reference
         self.fig = Figure(figsize=(7, 5), dpi=100)
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("Calibrated Data")
-        self.ax.set_ylim(-10, 10)  # Set y-axis limits to match the original implementation
+        self.ax.set_ylim(-10, 10)  # Set y-axis limits
         self.graph = FigureCanvasTkAgg(self.fig, self)
         self.graph.get_tk_widget().pack()
         self.xdata = np.array([]) # Stores the time values (x-axis)
@@ -248,7 +249,7 @@ class GraphData(tk.Frame):
                     self.ydata[i] = np.roll(self.ydata[i], -sample_number)
                     self.ydata[i][-sample_number:] = y_vals[i]
 
-        # Trim the data to only the last 5 seconds
+        # Trim the data to only the last n seconds
         if len(self.xdata) > display_samples:
             self.xdata = self.xdata[-display_samples:]
             if chl_number == 1:
