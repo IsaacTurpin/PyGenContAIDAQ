@@ -9,6 +9,7 @@ from tkinter import ttk, messagebox, filedialog
 import matplotlib
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
+from matplotlib.ticker import AutoLocator, MaxNLocator
 matplotlib.use("TkAgg")
 from datetime import datetime
 
@@ -286,6 +287,9 @@ class GraphData(tk.Frame):
 
         # Set y-axis limits with the added margin
         self.ax.set_ylim(y_min, y_max)
+
+        # Use MaxNLocator to ensure a minimum of 8 intervals
+        self.ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
 
         # Plot the data
         if chl_number == 1:
