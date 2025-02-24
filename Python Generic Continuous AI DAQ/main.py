@@ -33,6 +33,7 @@ class VoltageContinuousInput(tk.Frame):
         self.inputSettingsFrame.grid(row=1, column=1, pady=(20, 0), padx=(20, 20), ipady=10)
         self.inputSettingsFrame.stopButton['state'] = 'disabled'
 
+        # Pass self (parent) to GraphData
         self.graphDataFrame = GraphData(self)
         self.graphDataFrame.grid(row=0, rowspan=2, column=2, pady=(20, 0), ipady=10)
 
@@ -42,7 +43,7 @@ class VoltageContinuousInput(tk.Frame):
         try:
             # Validate inputs
             physical_channel = self.channelSettingsFrame.physicalChannelEntry.get()
-            sample_rate = self.inputSettingsFrame.sampleRateEntry.get()
+            sample_rate = self.inputSettingsFrame.sampleRateEntry.get() # how many data points are collected per second
             scale = self.channelSettingsFrame.scale_entry.get()
             offset = self.channelSettingsFrame.offset_entry.get()
 
@@ -200,6 +201,7 @@ class InputSettings(tk.LabelFrame):
 class GraphData(tk.Frame):
     def __init__(self, parent):
         tk.Frame.__init__(self, parent)
+        self.parent = parent  # Store the parent reference
         self.fig = Figure(figsize=(7, 5), dpi=100)
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.ax.set_xlabel("Time (s)")
@@ -207,13 +209,14 @@ class GraphData(tk.Frame):
         self.ax.set_ylim(-10, 10)  # Set y-axis limits to match the original implementation
         self.graph = FigureCanvasTkAgg(self.fig, self)
         self.graph.get_tk_widget().pack()
-        self.xdata = np.array([])
-        self.ydata = []
+        self.xdata = np.array([]) # Stores the time values (x-axis)
+        self.ydata = [] # Stores the voltage values (y-axis)
+        self.display_duration = 10  # Display last n seconds of data
 
     def define_xy_array(self, array_no, data_title):
         self.legend_title = data_title
-        self.xdata = np.array([])
-        self.ydata = [[] for _ in range(array_no)]
+        self.xdata = np.array([])  # x-axis data buffer
+        self.ydata = [[] for _ in range(array_no)]  # y-axis data buffer
 
     def plot_data(self, chl_number, sample_number, x_vals, scale, offset, y_vals):
         self.ax.clear()  # Clear previous data without losing axis settings
@@ -221,22 +224,12 @@ class GraphData(tk.Frame):
         # Ensure the y-axis remains fixed
         self.ax.set_ylim(-10, 10)
 
-        # Prevent errors when xdata is empty
-        if self.xdata.size > 0:
-            x_min = max(0, self.xdata.min())
-            x_max = max(10, self.xdata.max())
-        else:
-            x_min, x_max = 0, 10  # Default x-axis range at start
-
-        self.ax.set_xlim(x_min, x_max)
-        self.ax.set_xlabel("Time (s)")
-        self.ax.set_ylabel("Calibrated Data")
+        # Calculate the number of samples to display for n seconds
+        sample_rate = float(self.parent.inputSettingsFrame.sampleRateEntry.get())
+        display_samples = int(sample_rate * self.display_duration)
 
         # Update data buffers
-        xlimit = 10  # Display last 10 seconds of data
-        display_number = sample_number * xlimit
-
-        if len(self.xdata) < display_number:
+        if len(self.xdata) < display_samples:
             self.xdata = np.append(self.xdata, x_vals)
             if chl_number == 1:
                 self.ydata = np.append(self.ydata, y_vals)
@@ -244,6 +237,7 @@ class GraphData(tk.Frame):
                 for i in range(chl_number):
                     self.ydata[i] = np.append(self.ydata[i], y_vals[i])
         else:
+            # Remove the oldest data to make room for new data
             self.xdata = np.roll(self.xdata, -sample_number)
             self.xdata[-sample_number:] = x_vals
             if chl_number == 1:
@@ -254,6 +248,15 @@ class GraphData(tk.Frame):
                     self.ydata[i] = np.roll(self.ydata[i], -sample_number)
                     self.ydata[i][-sample_number:] = y_vals[i]
 
+        # Trim the data to only the last 5 seconds
+        if len(self.xdata) > display_samples:
+            self.xdata = self.xdata[-display_samples:]
+            if chl_number == 1:
+                self.ydata = self.ydata[-display_samples:]
+            else:
+                for i in range(chl_number):
+                    self.ydata[i] = self.ydata[i][-display_samples:]
+
         # Apply scaling and offset to the data
         for i in range(chl_number):
             if chl_number == 1:
@@ -261,6 +264,10 @@ class GraphData(tk.Frame):
             else:
                 calibrated_data = np.array(self.ydata[i]) * float(scale[i]) + float(offset[i])
             self.ax.plot(self.xdata, calibrated_data, label=self.legend_title[i])
+
+        # Set x-axis limits to show the last n seconds
+        if len(self.xdata) > 0:
+            self.ax.set_xlim(max(0, self.xdata[-1] - self.display_duration), self.xdata[-1])
 
         self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True)
         self.graph.draw()
