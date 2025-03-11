@@ -208,7 +208,6 @@ class GraphData(tk.Frame):
         self.ax = self.fig.add_subplot(1, 1, 1)
         self.ax.set_xlabel("Time (s)")
         self.ax.set_ylabel("Calibrated Data")
-        self.ax.set_ylim(-10, 10)  # Set y-axis limits
         self.graph = FigureCanvasTkAgg(self.fig, self)
         self.graph.get_tk_widget().pack()
         self.xdata = np.array([]) # Stores the time values (x-axis)
@@ -280,16 +279,34 @@ class GraphData(tk.Frame):
         if current_max > self.max_value:
             self.max_value = current_max
 
-        # Add a margin to the min and max values
-        margin = 0.1 * (self.max_value - self.min_value)  # 10% of the data range
-        y_min = self.min_value - margin
-        y_max = self.max_value + margin
+        # Add a 10% margin to the y-axis limits
+        y_margin = 0.1 * (self.max_value - self.min_value)
+        y_min = self.min_value - y_margin
+        y_max = self.max_value + y_margin
 
         # Set y-axis limits with the added margin
         self.ax.set_ylim(y_min, y_max)
 
-        # Use MaxNLocator to ensure a minimum of 8 intervals
+        # Use MaxNLocator to ensure a minimum of 10 intervals on the y-axis
         self.ax.yaxis.set_major_locator(MaxNLocator(nbins=10))
+
+        # Calculate the x-axis range
+        if len(self.xdata) > 0:
+            x_min = np.min(self.xdata)
+            x_max = np.max(self.xdata)
+        else:
+            x_min, x_max = 0, 10  # Default values if no data is available
+
+        # Add a 10% margin to the x-axis limits
+        x_margin = 0.1 * (x_max - x_min)
+        x_min_with_margin = max(0, x_min - x_margin)  # Ensure x_min doesn't go below 0
+        x_max_with_margin = x_max + x_margin
+
+        # Set x-axis limits with the added margin
+        self.ax.set_xlim(x_min_with_margin, x_max_with_margin)
+
+        # Use MaxNLocator to ensure a minimum of 10 intervals on the x-axis
+        self.ax.xaxis.set_major_locator(MaxNLocator(nbins=10))
 
         # Plot the data
         if chl_number == 1:
@@ -297,10 +314,6 @@ class GraphData(tk.Frame):
         else:
             for i in range(chl_number):
                 self.ax.plot(self.xdata, calibrated_data[i], label=self.legend_title[i])
-
-        # Set x-axis limits to show the last n seconds
-        if len(self.xdata) > 0:
-            self.ax.set_xlim(max(0, self.xdata[-1] - self.display_duration), self.xdata[-1])
 
         # Add legend
         self.ax.legend(loc='upper center', bbox_to_anchor=(0.5, 1.15), ncol=4, fancybox=True, shadow=True)
